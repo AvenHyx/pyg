@@ -1,0 +1,18 @@
+<style lang="less">
+</style>
+<template>
+  <view class="container">我是随便写的内容</view>
+</template>
+
+<script>
+import wepy from 'wepy';
+
+export default class My extends wepy.page {
+  config = {
+    navigationBarTitleText: '我的页面'
+  };
+  onLoad() {
+    console.log('onLoad');
+  }
+}
+</script>

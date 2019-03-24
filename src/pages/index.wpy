@@ -1,18 +1,286 @@
-<style lang="less">
-</style>
+
 <template>
-  <view class="container">Hello world</view>
+<view class="contain">
+   <!-- 搜索框 -->
+   <view class="search">
+     <view class="box">
+       <!-- 要引入字体图标 在资料里引入 记得改过来 font -->
+       <view class="iconfont icon-sousuo"></view>
+       <text>搜索</text>
+     </view>
+   </view>
+   <!-- 轮播图 -->
+    <swiper indicator-dots autoplay circular>
+      <swiper-item wx:for="{{swiperList}}" wx:key="goods_id">
+        <navigator url="/pages/goods_detail?goods_id={{item.goods_id}}">
+          <image src="{{item.image_src}}"></image>
+        </navigator>
+      </swiper-item>
+    </swiper>
+    <!-- 导航 -->
+    <view class="nav">
+      <view class="item" wx:for="{{navList}}" wx:key="name">
+        <navigator
+        open-type="{{index === 0 ? 'switchTab' : 'navigate'}}"
+        url="{{index === 0 ? item.navigator_url :'/pages/list?keyword=' +item.keyword}}">
+           <image src="{{item.image_src}}"></image>
+        </navigator>
+      </view>
+    </view>
+    <!-- 楼层的结构和样式 -->
+    <view class="floor" wx:for="{{floorList}}" wx:key="id">
+      <view class="title">
+        <image src="{{item.floor_title.image_src}}"></image>
+      </view>
+      <view class="content">
+        <view class="left">
+          <navigator url="/pages/list?keyword={{item.product_list[0].keyword}}">
+           <image src="{{item.product_list[0].image_src}}"></image>
+          </navigator>
+        </view>
+        <view class="right">
+          <!-- 这种可以实现 但是更好的方式是再次遍历product_list -->
+           <!-- <image src="{{item.product_list[1].image_src}}"></image>
+           <image src="{{item.product_list[2].image_src}}"></image>
+           <image src="{{item.product_list[3].image_src}}"></image>
+           <image src="{{item.product_list[4].image_src}}"></image> -->
+           <navigator
+              wx:for="{{item.product_list}}"
+              wx:key= "name"
+              wx:for-item="image"
+              wx:for-index="i"
+              wx:if="{{i !==0}}"
+              url="pages/list?keyword={{image.keyword}}"
+              >
+              <image  src="{{image.image_src}}" style="width:{{image.image_width}}rpx"> </image>
+           </navigator>
+        </view>
+      </view>
+    </view>
+
+    <!-- 返回顶部 -->
+    <view class="goTop" hidden="{{!isShowTop}}" @tap="goTop">
+      <text></text>
+      <text>顶部</text>
+    </view>
+</view>
 </template>
 
 <script>
 import wepy from 'wepy';
-
+import fetch from "../utils/utils";
 export default class Index extends wepy.page {
   config = {
-    navigationBarTitleText: '测试wepy'
-  };
+    navigationBarTitleText: '首页'
+  }
+  data={
+    swiperList :[],
+    navList : [],
+    floorList:[],
+    // 控制返回顶部图标显示与隐藏  当页面滚动的时候 获取到页面的卷曲距离  距离>= 300 此时需要返回顶部
+    isShowTop : false
+  }
   onLoad() {
-    console.log('onLoad');
+    this.getSwiperList()
+    this.getNavList()
+    this.getFloorList()
+  }
+  // 在wepy中事件处理函数 写在methods
+  methods = {
+    goTop(){
+      wepy.pageScrollTo({
+        scrollTop:0,
+        duration:100
+      })
+    }
+  }
+  // 当页面滚动的时候触发该事件
+  onPageScroll(obj){
+     this.isShowTop = obj.scrollTop >= 300
+    //  该事件很消耗性能 小程序中是一个异步操作 所以需要调用$apply()
+     this.$apply()
+  }
+
+  // 获取轮播图数据
+  async getSwiperList(){
+    // wx.request({
+    //   url :  "https://itjustfun.cn/api/public/v1/home/swiperdata",
+    //   success : res=>{
+    //     // console.log(res)
+    //     // 原来的写法是this.data.XXX 在wepy中this.XXX获取
+    //     // 但是异步函数，就需要调用$apply 如果是同步的话 就不需要
+    //     // 会报错swiperLIst是not undefined 需要把success的函数改成箭头函数，改变下作用域范围就行
+    //     this.swiperList = res.data.data;
+    //     this.$apply();
+    //   }
+    // })
+      // 配置了promise里的async 和await 在官方文档里promise配置方法配置的
+      //  let res =await wepy.request({
+      //    url : "https://itjustfun.cn/api/public/v1/home/swiperdata"
+      //  })
+  // 用fetch来写
+      let res = await fetch("home/swiperdata")
+        // console.log(res)
+      this.swiperList = res.data.data;
+      this.$apply()
+  }
+  // 获取导航数据
+  async getNavList(){
+    //  wx.request({
+    //     url : "https://itjustfun.cn/api/public/v1/home/catitems",
+    //     success : res=>{
+    //       // console.log(res)
+    //        this.navList = res.data.data;
+    //        this.$apply()
+    //     }
+    //  })
+    //  let res = await wepy.request({
+    //    url:"https://itjustfun.cn/api/public/v1/home/catitems"
+    //  })
+    let res = await fetch("home/catitems")
+    //  console.log(res)
+     this.navList = res.data.data
+     this.$apply()
+  }
+  // 获取楼层数据
+   async getFloorList(){
+    //      wx.request({
+    //     url : "https://itjustfun.cn/api/public/v1/home/floordata",
+    //     success : res=>{
+    //       // console.log(res)
+    //       // 手动给数据加上id
+    //       res.data.data.forEach((item,index)=>item.id = index++)
+    //        this.floorList = res.data.data;
+    //        this.$apply()
+    //     }
+    //  })
+    // let res = await  wepy.request({
+    //   url : "https://itjustfun.cn/api/public/v1/home/floordata"
+    // })
+    let res = await fetch("home/floordata")
+    // console.log(res)
+    this.floorList= res.data.data
+    res.data.data.forEach((item,index)=>item.id = ++index)
+    this.$apply()
   }
 }
 </script>
+<style lang="less">
+
+// 导入字体图标
+@import "../assets/wxss/icon-font.wxss";
+// 搜索
+page{
+  padding-top: 100rpx;
+}
+.search{
+  background-color: #ff2d4a;
+  padding: 20rpx 16rpx;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 999;
+  box-sizing: border-box;
+  width: 100%;
+   .box{
+     height: 60rpx;
+     color:#bbb;
+     display: flex;
+     justify-content: center;
+     align-items: center;
+     border-radius: 8rpx;
+     background-color: #fff;
+     text{
+       font-size: 28rpx;
+       margin-left: 16rpx;
+     }
+   }
+
+}
+swiper{
+  width: 750rpx;
+  height: 340rpx;
+
+  image{
+    width: 750rpx;
+    height: 340rpx;
+  }
+}
+
+// 导航样式
+ .nav{
+   padding: 24rpx 0 29rpx 0;
+   background-color: #fff;
+   display: flex;
+   .item{
+     flex:1;
+     text-align: center;
+     image{
+       width: 128rpx;
+       height: 128rpx;
+     }
+   }
+ }
+
+//  楼层的样式
+.floor{
+  .title{
+    background-color: #eee;
+    padding-top: 30rpx;
+    image{
+      width: 750rpx;
+      height: 59rpx;
+    }
+  }
+  .content{
+    display: flex;
+    padding:20rpx 16rpx;
+    navigator{
+      display: inline-block;
+    }
+    image{
+      // 图片之间默认没挨边 是vertical-align的原因 设置middle对齐
+      vertical-align: middle;
+    }
+    .left{
+      image{
+        width: 232rpx;
+        height: 386rpx;
+        margin-right:10rpx;
+      }
+    }
+    .right{
+      navigator{
+
+          &:nth-child(-n+2){
+            margin-bottom: 10rpx;
+          }
+          &:nth-child(odd){
+            margin-right: 10rpx;
+          }
+       }
+      image{
+          width: 233rpx;
+          height: 188rpx;
+      }
+    }
+  }
+}
+
+// 返回顶部
+.goTop{
+  width: 100rpx;
+  height: 100rpx;
+  background-color: rgba(255,255,255,.7);
+  border-radius: 50%;
+  position: fixed;
+  right: 20rpx;
+  bottom: 80rpx;
+  z-index: 999;
+  color: #999;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+</style>

@@ -1,0 +1,471 @@
+
+<template>
+  <swiper
+    class="swiper"
+    indicator-dots="{{ true }}"
+    indicator-color="rgba(255,255,255,.5)"
+    indicator-active-color="#ffffff"
+    interval="2500"
+    autoplay
+    circular
+  >
+    <block wx:for="{{detail.pics}}" wx:key="pics_id">
+      <swiper-item>
+        <image class="swiper-img" src="{{item.pics_big_url}}">
+      </swiper-item>
+    </block>
+  </swiper>
+  <view class="product-info">
+    <view class="product-head">
+      <text class="price">￥ {{detail.goods_price }}</text>
+    </view>
+    <view class="product-body">
+      <view class="product-name">{{detail.goods_name}}</view>
+      <view class="product-like">
+        <view class="iconfont icon-shoucang"></view>
+        <view>收藏</view>
+      </view>
+    </view>
+    <view class="product-foot">快递：
+      <text>免运费</text>
+    </view>
+  </view>
+  <view class="part">
+    <view class="part-item part-line">
+      <text class="note">促销</text>
+      <text class="description color-main">满300减30元</text>
+    </view>
+    <view class="part-item">
+      <text class="note">已选</text>
+      <text class="description">黑色/S/1件</text>
+    </view>
+  </view>
+  <view class="part">
+    <!-- <Address> -->
+    <view class="part-item" @tap="chooseAddress">
+      <text class="note">送至</text>
+      <text class="description">{{address}}</text>
+      <view class="iconfont icon-jiantouyou"></view>
+    </view>
+    <!-- </Address> -->
+  </view>
+
+  <view class="tabs">
+    <view class="tabs-head">
+      <block>
+        <view class="tabs-item {{activeIndex === 0 ? 'active' : ''}}" @tap="changeTab({{0}})">图文详情</view>
+        <view class="tabs-item {{activeIndex === 1 ? 'active' : ''}}" @tap="changeTab({{1}})">规格参数</view>
+      </block>
+    </view>
+    <view class="tabs-body">
+      <view class="tabs-content introduce" hidden="{{activeIndex !== 0}}">
+        <!-- {{detail.goods_introduce}} -->
+        <!-- 引入模板 -->
+        <import src="/assets/wxParse/wxParse.wxml"/>
+        <!-- 这里data中article为bindName -->
+        <template is="wxParse" data="{{wxParseData:article.nodes}}"/>
+      </view>
+      <view class="tabs-content" hidden="{{activeIndex !== 1}}">
+        <block wx:for="{{detail.attrs}}" wx:key="attr_id">
+          <view class="param-item">
+            <text class="note">{{item.attr_name}}</text>
+            <text class="description">{{item.attr_value || '无'}}</text>
+          </view>
+        </block>
+      </view>
+    </view>
+  </view>
+
+  <view class="fixed-bar">
+    <view class="item">
+      <!-- 9.0.1 客服按钮添加  open-type="contact" -->
+      <button open-type="contact" class="contact-btn">客服按钮</button>
+      <view class="iconfont icon-kefu"></view>
+      <text class="item-note">联系客服</text>
+    </view>
+    <!-- 10.0.1 事件绑定，通过事件方式，实现购物车 tabBar 跳转 -->
+    <navigator url="/pages/cart" open-type="switchTab" class="item">
+      <view class="iconfont icon-gouwuche"></view>
+      <text class="item-note">购物车</text>
+    </navigator>
+    <view class="btn-group">
+      <view class="btn yellow-button" @tap="addToCart">加入购物车</view>
+      <view class="btn red-button">立即购买</view>
+    </view>
+  </view>
+</template>
+
+<script>
+import wepy from 'wepy';
+// 第二步 引入WxParse文件 从git下载的包
+import WxParse from '../assets/wxParse/wxParse';
+// 引入封装好的fetch函数  为什么写fetch报错..
+import fetch from '../utils/utils';
+
+export default class GoodsDetail extends wepy.page {
+  config = {
+    navigationBarTitleText: '品优购',
+    navigationBarBackgroundColor: '#ff2d4a',
+    navigationBarTextStyle: 'white'
+  };
+  data = {
+    goods_id: '',
+    detail: '',
+    address: '请选择地址',
+    activeIndex: 0,
+    cart: []
+  };
+  onLoad(query) {
+    console.log(query);
+    this.goods_id = query.goods_id;
+    this.getDetail();
+    this.getAddress();
+    this.getCart();
+
+    // var article = '<div>我是HTML代码</div>';
+    /**
+     * WxParse.wxParse(bindName , type, data, target,imagePadding)
+     * 1.bindName绑定的数据名(必填)
+     * 2.type可以为html或者md(必填)
+     * 3.data为传入的具体数据(必填)
+     * 4.target为Page对象,一般为this(必填)
+     * 5.imagePadding为当图片自适应是左右的单一padding(默认为0,可选)
+     */
+    // var that = this;
+    // WxParse.wxParse('article', 'html', article, that, 5);
+  }
+  // 拿购物车数据 从缓存区拿数据
+  getCart() {
+    this.cart = wepy.getStorageSync('cart') || [];
+  }
+  // 获取下轮播图的数据 就是主页面的大图 轮播
+  async getDetail() {
+    // let res = await wepy.request({
+    //   url: 'https://itjustfun.cn/api/public/v1/goods/detail',
+    //   data: {
+    //     goods_id: this.goods_id
+    //   }
+    // });
+    // 用fetch函数封装的
+    let res = await fetch({
+      url: 'goods/detail',
+      data: {
+        goods_id: this.goods_id
+      }
+    });
+    console.log(res);
+    this.detail = res.data.data;
+    WxParse.wxParse('article', 'html', this.detail.goods_introduce, this, 5);
+    this.$apply();
+  }
+  //注册点击事件的获取地址的处理函数 小程序自带，wepy.chooseAddress()方法
+  methods = {
+    async chooseAddress() {
+      // 发送ajax请求获取地址数据
+      let res = await wepy.chooseAddress();
+      console.log(res);
+      // 用ES6赋值结构
+      let { provinceName, cityName, countyName, detailInfo } = res;
+      this.address = `${provinceName + cityName + countyName + detailInfo}`;
+      // 记得调用$apply()因为是异步操作
+      this.$apply();
+      // 因为只要一刷新 之前保存的地址就没有了，需要把地址存储在本地缓存中 用到setStorageSync方法
+      wepy.setStorageSync('address', res);
+    },
+    // 切换tab栏高亮效果
+    changeTab(index) {
+      this.activeIndex = index;
+    },
+    // 加入购物车的事件处理函
+    async addToCart() {
+      //  首先根据id来找数据，因为在商品详情页 此时有数据返回 不需要再传id 直接用就可以了
+
+      // 根据这个id来找该商品详情， 如果已经存在让数量++  如果没找到 新增数据
+      let goods = this.cart.find(item => item.goods_id == this.goods_id);
+      console.log(goods);
+      if (goods) {
+        goods.goods_num++;
+      } else {
+        let {
+          goods_id,
+          goods_name,
+          goods_price,
+          goods_small_logo
+        } = this.detail;
+        this.cart.push({
+          goods_id,
+          goods_name,
+          goods_price,
+          goods_small_logo,
+          goods_num: 1,
+          isChecked: true
+        });
+      }
+
+      // 设置提醒信息
+      let res = await wepy.showToast({
+        title: '添加成功',
+        mask: true
+      });
+      // 让这个数据重新存储
+      wepy.setStorageSync('cart', this.cart);
+    }
+  };
+
+  // 从本地缓存中拿到数据，再把数据赋值给address
+  getAddress() {
+    // 从缓存中拿到地址
+    // 把拿到的地址再赋值给address
+    let res = wepy.getStorageSync('address');
+    // 前提 如果缓存中没有地址 比如强制清除的行为会导致缓存中没有地址，需要返回
+    if (!res) return;
+    let { provinceName, cityName, countyName, detailInfo } = res;
+    this.address = `${provinceName + cityName + countyName + detailInfo}`;
+  }
+
+  // 消掉事件警告
+  wxParseImgLoad() {}
+}
+</script>
+<style lang="less">
+// 导入字体图标
+@import '../assets/wxss/icon-font.wxss';
+// 第三步 导入 wxParse.wxss文件
+@import '../assets/wxParse/wxParse.wxss';
+.swiper,
+.swiper-img {
+  width: 750rpx;
+  height: 720rpx;
+}
+
+.product-info {
+  height: 300rpx;
+  background-color: #fff;
+  padding: 0 16rpx;
+}
+.product-head {
+  height: 80rpx;
+  .price {
+    color: #ff2d4a;
+    font-size: 50rpx;
+    margin-left: -10rpx;
+  }
+  .old-price {
+    color: #999;
+    font-size: 26rpx;
+  }
+}
+.product-body {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  .product-name {
+    font-size: 34rpx;
+    width: 546rpx;
+    height: 88rpx;
+    line-height: 1.3;
+    /* 多行文字隐藏省略号 */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  .product-like {
+    height: 78rpx;
+    border-left: 1rpx solid #ddd;
+    padding-left: 46rpx;
+    margin: 0 30rpx;
+    color: #999;
+    font-size: 28rpx;
+
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .icon-shoucang {
+    width: 32rpx;
+    height: 32rpx;
+    margin-top: 10rpx;
+  }
+}
+
+.product-foot {
+  font-size: 30rpx;
+  color: #999;
+  margin-top: 34rpx;
+}
+
+.part {
+  background-color: #fff;
+  margin: 20rpx 0;
+  font-size: 32rpx;
+  color: #999;
+
+  .part-line {
+    overflow: hidden;
+  }
+
+  &-item {
+    display: flex;
+    padding: 28rpx 16rpx;
+    position: relative;
+    align-items: center;
+  }
+
+  &-line:after {
+    content: '';
+    height: 1rpx;
+    width: 734rpx;
+    background-color: #ddd;
+    display: block;
+    position: absolute;
+    bottom: -1rpx;
+  }
+  .note {
+    color: #333;
+    margin-right: 40rpx;
+  }
+  .description {
+    width: 490rpx;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    word-wrap: normal;
+  }
+  .icon-jiantouyou {
+    width: 25rpx;
+    height: 25rpx;
+    color: #ccc;
+    position: absolute;
+    right: 46rpx;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+.tabs-head {
+  height: 100rpx;
+  background-color: #fff;
+  display: flex;
+}
+.tabs-head .tabs-item {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  position: relative;
+}
+.tabs-head .active {
+  color: #ff2d4a;
+  font-weight: 400;
+}
+.tabs-head .active:after {
+  content: '';
+  height: 12rpx;
+  width: 100%;
+  background-color: #ff2d4a;
+  position: absolute;
+  left: 0;
+  bottom: 0;
+}
+.tabs-body {
+  padding: 16rpx;
+  padding-bottom: 250rpx;
+
+  .introduce {
+    text-align: center;
+    // 解决图片间的间隙问题， 改成底线对齐  一般middle就行了 但是这里还有一点间隙的
+    image {
+      vertical-align: bottom;
+    }
+  }
+}
+.param-item {
+  padding: 30rpx 0;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+}
+.param-item .note {
+  width: 150rpx;
+  color: #999;
+}
+.param-item .description {
+  width: 568rpx;
+  line-height: 1.3;
+}
+
+.fixed-bar {
+  width: 750rpx;
+  height: 98rpx;
+  background-color: #fff;
+  position: fixed;
+  bottom: 0;
+  z-index: 11;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.fixed-bar .item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.fixed-bar .item .iconfont {
+  width: 40rpx;
+  height: 40rpx;
+  font-size: 40rpx;
+  color: #999;
+}
+
+.fixed-bar .item .item-note {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: #666;
+}
+.fixed-bar .btn-group {
+  display: flex;
+}
+.fixed-bar .btn {
+  width: 213rpx;
+  height: 98rpx;
+  line-height: 98rpx;
+  text-align: center;
+  font-size: 30rpx;
+  color: #fff;
+}
+.yellow-button {
+  background-color: #ffb400;
+}
+.red-button {
+  background-color: #ff2d4a;
+}
+
+.wxParse-content {
+  padding: 55rpx;
+
+  .wxParse-a {
+    display: none;
+  }
+  .wxParse-div {
+    display: flex;
+    justify-content: center;
+  }
+}
+.contact-btn {
+  opacity: 0;
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+.fixed-bar .item {
+  position: relative;
+}
+</style>
